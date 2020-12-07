@@ -26,7 +26,7 @@ async function run() {
 
     // Generate proof
     let input = {cm1: correctHash, cm2: badHash, sn: sn, r: r, index: 0};
-    let proof = await snarkjs.groth16.fullProve(input, "circuit.wasm", "circuit_final.zkey");
+    let proof = await snarkjs.groth16.fullProve(input, "verifier.wasm", "circuit_final.zkey");
     let publicSignals = proof.publicSignals;
 
     // Verify proof
@@ -41,7 +41,7 @@ async function run() {
 
     // Now run it again but switch index
     input = {cm1: badHash, cm2: correctHash, sn: sn, r: r, index: 1};
-    proof = await snarkjs.groth16.fullProve(input, "circuit.wasm", "circuit_final.zkey");
+    proof = await snarkjs.groth16.fullProve(input, "verifier.wasm", "circuit_final.zkey");
 
     // Verify proof
     res = await snarkjs.groth16.verify(vKey, proof.publicSignals, proof.proof);
@@ -54,7 +54,7 @@ async function run() {
 
     // Now run it again but make sure the proof is invalid by giving incorrect index
     input = {cm1: correctHash, cm2: badHash, sn: sn, r: r, index: 1};
-    proof = await snarkjs.groth16.fullProve(input, "circuit.wasm", "circuit_final.zkey");
+    proof = await snarkjs.groth16.fullProve(input, "verifier.wasm", "circuit_final.zkey");
 
     // Verify proof
     res = await snarkjs.groth16.verify(vKey, proof.publicSignals, proof.proof);
@@ -67,7 +67,7 @@ async function run() {
 
     // Now run it again, make sure it's invalid and swith the indices
     input = {cm1: badHash, cm2: correctHash, sn: sn, r: r, index: 0};
-    proof = await snarkjs.groth16.fullProve(input, "circuit.wasm", "circuit_final.zkey");
+    proof = await snarkjs.groth16.fullProve(input, "verifier.wasm", "circuit_final.zkey");
 
     // Verify proof
     res = await snarkjs.groth16.verify(vKey, proof.publicSignals, proof.proof);
