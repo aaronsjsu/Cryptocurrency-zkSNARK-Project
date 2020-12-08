@@ -1,6 +1,8 @@
 "use strict";
 
 const crypto = require('crypto');
+const getRandomValues = require('get-random-values');
+const ZksnarkCoin = require("./zk-snark-coin.js");
 
 const HASH_LENGTH = 256;
 
@@ -38,8 +40,23 @@ exports.parsePublicSignals = function(publicSignals) {
   return [cm1, cm2, sn];
 }
 
-exports.random256BitNumber() {
+exports.random256BitNumber = function() {
   let randomBytes = new Uint8Array(32);
-  crypto.getRandomValues(randomBytes);
+  getRandomValues(randomBytes);
   return Buffer.alloc(32, randomBytes);
+}
+
+/**
+ * Creates a new ZksnarkCoin using random numbers for r and sn.
+ *
+ * @returns {ZksnarkCoin} - The new coin.
+ */
+exports.createNewCoin = function() {
+  let r = this.random256BitNumber();
+  let sn = this.random256BitNumber();
+  let buf = Buffer.alloc(sn.length * 2);
+  buf.fill(sn, sn.length);
+  buf.fill(r, 0, r.length);
+  let cm = crypto.createHash("sha256").update(buf).digest();
+  return new ZksnarkCoin(cm, r, sn);
 }

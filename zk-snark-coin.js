@@ -6,7 +6,7 @@ const crypto = require("crypto");
 /**
  * Represents a single coin. Holds the values: cm, r, and sn. These are the values that make up a coin.
  */
-class ZksnarkCoin {
+module.exports = class ZksnarkCoin {
 
   /**
    * Constructs a new coin.
@@ -22,24 +22,4 @@ class ZksnarkCoin {
     this.sn = sn;
   }
 
-}
-
-/**
- * Creates a new ZksnarkCoin using random numbers for r and sn.
- *
- * @returns {ZksnarkCoin} - The new coin.
- */
-const createNewCoin = function() {
-  let r = zksnarkUtils.random256BitNumber();
-  let sn = zksnarkUtils.random256BitNumber();
-  let buf = Buffer.alloc(sn.length * 2);
-  buf.fill(sn, sn.length);
-  buf.fill(r, 0, r.length);
-  let cm = crypto.createHash("sha256").update(buf).digest();
-  return new ZksnarkCoin(cm, r, sn);
-}
-
-module.exports = {
-  ZksnarkCoin,
-  createNewCoin
 }
