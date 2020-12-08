@@ -1,13 +1,11 @@
 const snarkjs = require("snarkjs");
 const fs = require("fs");
 const crypto = require("crypto");
+const ZksnarkBlockchain = require('./zk-snark-blockchain.js');
+const ZksnarkTransaction = require('./zk-snark-transaction.js');
+const ZksnarkBlock = require('./zk-snark-block.js');
+const ZksnarkCoin = require('./zk-snark-coin.js');
 const zksnarkUtils = require("./zk-snark-utils.js");
-const zksnarkBlockchain = require('./zk-snark-blockchain.js');
-const zksnarkBlock = require('./zk-snark-block.js');
-const zksnarkClient = require('./zk-snark-client.js');
-const zksnarkMiner = require('./zk-snark-miner.js');
-const zksnarkTransaction = require('./zk-snark-transaction.js');
-const zksnarkCoin = require('./zk-snark-coin.js');
 
 async function testCircuit() {
 
@@ -114,10 +112,10 @@ async function testSerializations() {
   let initialCoins = [];
   initialCoins.push(zksnarkUtils.createNewCoin().cm);
   initialCoins.push(zksnarkUtils.createNewCoin().cm);
-  let genesisBlock = zksnarkBlockchain.makeGenesis({
-    blockClass: zksnarkBlock,
-    transactionClass: zksnarkTransaction,
-    currencyClass: zksnarkCoin,
+  let genesisBlock = ZksnarkBlockchain.makeGenesis({
+    blockClass: ZksnarkBlock,
+    transactionClass: ZksnarkTransaction,
+    currencyClass: ZksnarkCoin,
     powLeadingZeroes: 12,
     coinbaseAmount: 1
   }, initialCoins);
@@ -137,12 +135,12 @@ async function testSerializations() {
   let input = {cm1: correctHash, cm2: badHash, sn: sn, r: r, index: 0};
   let proof = await snarkjs.groth16.fullProve(input, "verifier.wasm", "circuit_final.zkey");
   let cm = zksnarkUtils.createNewCoin().cm;
-  let tx = new zksnarkTransaction(proof, cm);
+  let tx = new ZksnarkTransaction(proof, cm);
   let serializedTx = JSON.parse(JSON.stringify(tx));
-  let deserializedTx = zksnarkBlockchain.deserializeTransaction(serializedTx);
+  let deserializedTx = ZksnarkBlockchain.deserializeTransaction(serializedTx);
   console.log("\nTesting transaction serialization. Expect true:");
   let equals = true;
-  if (!(deserializedTx instanceof zksnarkTransaction)) { equals = false; }
+  if (!(deserializedTx instanceof ZksnarkTransaction)) { equals = false; }
   let vKey = JSON.parse(fs.readFileSync("verification_key.json"));
   equals = await snarkjs.groth16.verify(vKey, proof.publicSignals, proof.proof);
   if (deserializedTx.cm === undefined) { equals = false; }
@@ -155,10 +153,10 @@ async function testSerializations() {
   genesisBlock.snlist.push(zksnarkUtils.createNewCoin().sn);
   genesisBlock.coinbaseTransactions.push(zksnarkUtils.createNewCoin().cm);
   let serializedBlock = JSON.parse(JSON.stringify(genesisBlock));
-  let deserializedBlock = zksnarkBlockchain.deserializeBlock(serializedBlock);
+  let deserializedBlock = ZksnarkBlockchain.deserializeBlock(serializedBlock);
   console.log("\nTesting block serialization. Expect true:");
   equals = true;
-  if (!(deserializedBlock instanceof zksnarkBlock)) { equals = false; }
+  if (!(deserializedBlock instanceof ZksnarkBlock)) { equals = false; }
   if (genesisBlock.prevBlockHash !== deserializedBlock.prevBlockHash) { equals = false; }
   if (genesisBlock.proof !== deserializedBlock.proof) { equals = false; }
   if (genesisBlock.prevBlockHash !== deserializedBlock.prevBlockHash) { equals = false; }
@@ -190,16 +188,16 @@ async function testSerializations() {
   // Test coin serialization/deserialization
   let coin = zksnarkUtils.createNewCoin();
   let serializedCoin = JSON.parse(JSON.stringify(coin));
-  let deserializedCoin = zksnarkBlockchain.deserializeCoin(serializedCoin);
+  let deserializedCoin = ZksnarkBlockchain.deserializeCoin(serializedCoin);
   console.log("\nTesting coin serialization. Expect true:");
   equals = true;
-  if (!(deserializedCoin instanceof zksnarkCoin)) { equals = false; }
+  if (!(deserializedCoin instanceof ZksnarkCoin)) { equals = false; }
   if (coin.cm.compare(deserializedCoin.cm) !== 0) { equals = false; }
   if (coin.r.compare(deserializedCoin.r) !== 0) { equals = false; }
   if (coin.sn.compare(deserializedCoin.sn) !== 0) { equals = false; }
   console.log(equals);
 }
 
-testSerializations().then(() => {
+testCircuit().then(() => {
   process.exit(0);
 });
