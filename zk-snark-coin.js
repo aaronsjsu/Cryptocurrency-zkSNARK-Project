@@ -29,12 +29,17 @@ class ZksnarkCoin {
  *
  * @returns {ZksnarkCoin} - The new coin.
  */
-exports.createNewCoin = function() {
+const createNewCoin = function() {
   let r = zksnarkUtils.random256BitNumber();
   let sn = zksnarkUtils.random256BitNumber();
-  let buf = Buffer.alloc(this.sn.length * 2);
+  let buf = Buffer.alloc(sn.length * 2);
   buf.fill(sn, sn.length);
   buf.fill(r, 0, r.length);
   let cm = crypto.createHash("sha256").update(buf).digest();
   return new ZksnarkCoin(cm, r, sn);
+}
+
+module.exports = {
+  ZksnarkCoin,
+  createNewCoin
 }
