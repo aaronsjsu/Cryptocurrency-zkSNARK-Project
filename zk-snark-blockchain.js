@@ -20,7 +20,6 @@ module.exports = class ZksnarkBlockchain extends Blockchain {
     let block = super.makeGenesis(cfg);
 
     // For Zksnark functionality
-    block.transactions = [];
     block.coinbaseTransactions = [];
     block.cmlist = initialCoins;
     Blockchain.cfg.currencyClass = cfg.currencyClass;
@@ -43,10 +42,11 @@ module.exports = class ZksnarkBlockchain extends Blockchain {
     block.timestamp = o.timestamp;
     block.prevBlockHash = o.prevBlockHash;
     block.proof = o.proof;
-    block.transactions = [];
-    for (let i = 0; i < o.transactions.length; i++) {
-      block.transactions.push(Blockchain.deserializeTransaction(o.transactions[i]));
-    }
+    block.transactions = new Map();
+    if (o.transactions) o.transactions.forEach(([txID,txJson]) => {
+      let tx = this.deserializeTransaction(txJson);
+      block.transactions.set(tx.id, tx);
+    });
     block.coinbaseTransactions = [];
     for (let i = 0; i < o.coinbaseTransactions.length; i++) {
       block.coinbaseTransactions.push(Buffer.from(o.coinbaseTransactions[i]));
@@ -71,11 +71,13 @@ module.exports = class ZksnarkBlockchain extends Blockchain {
    * @returns {ZksnarkTransaction}
    */
   static deserializeTransaction(o) {
+    //console.log(o);
     if (o instanceof Blockchain.cfg.transactionClass) { return o; }
 
     let tx = new Blockchain.cfg.transactionClass();
     tx.proof = o.proof;
     tx.cm = Buffer.from(o.cm);
+    //console.log(tx);
     return tx;
   }
 
