@@ -9,15 +9,15 @@
  */
 module.exports = class ZksnarkTransaction {
 
-    /**
-     * Constructs a new transaction object.
-     *
-     * @param {proof} - The proper snarkjs proof for this transaction.
-     * @param {Buffer} - The coin hash cm of the new coin to mint.
-     */
-    constructor(proof, cm) {
-      this.proof = proof;
-      this.cm = cm;
-    }
+  /**
+   * Constructs a new transaction object.
+   *
+   * @param {proof} - The proper snarkjs proof for this transaction.
+   * @param {Buffer} - The coin hash cm of the new coin to mint.
+   */
+  constructor(proof, cm) {
+    this.proof = proof;
+    this.cm = cm;
+  }
 
 }
