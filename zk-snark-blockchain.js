@@ -71,13 +71,11 @@ module.exports = class ZksnarkBlockchain extends Blockchain {
    * @returns {ZksnarkTransaction}
    */
   static deserializeTransaction(o) {
-    //console.log(o);
     if (o instanceof Blockchain.cfg.transactionClass) { return o; }
 
     let tx = new Blockchain.cfg.transactionClass();
     tx.proof = o.proof;
     tx.cm = Buffer.from(o.cm);
-    //console.log(tx);
     return tx;
   }
 
@@ -96,6 +94,17 @@ module.exports = class ZksnarkBlockchain extends Blockchain {
     coin.r = Buffer.from(o.r);
     coin.sn = Buffer.from(o.sn);
     return coin;
+  }
+
+  /**
+   * Creates a copy of a block and returns it.
+   *
+   * @param {ZksnarkBlock} block - The block to be copied.
+   *
+   * @returns {ZksnarkBlock}
+   */
+  static copyBlock(block) {
+    return ZksnarkBlockchain.deserializeBlock(JSON.parse(JSON.stringify(block)));
   }
 
 }

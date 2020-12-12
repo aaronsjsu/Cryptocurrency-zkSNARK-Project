@@ -1,10 +1,10 @@
 "use strict";
 
 const { Block } = require("spartan-gold");
-const ZKSnarkBlockchain = require('./zk-snark-blockchain.js');
 const snarkjs = require("snarkjs");
 const fs = require("fs");
-const crypto = require("crypto");
+const ZksnarkBlockchain = require('./zk-snark-blockchain.js');
+const ZksnarkTransaction = require("./zk-snark-transaction.js");
 const zksnarkUtils = require("./zk-snark-utils.js");
 
 /**
@@ -21,61 +21,71 @@ module.exports = class ZksnarkBlock extends Block {
    * @param {Number} [target] - The POW target.  The miner must find a proof that
    *      produces a smaller value when hashed.
    */
-  constructor(prevBlock, target=ZKSnarkBlockchain.POW_TARGET) {
+  constructor(prevBlock, target=ZksnarkBlockchain.POW_TARGET) {
+    super();
+
     this.prevBlockHash = prevBlock ? prevBlock.hashVal() : null;
+    this.chainLength = prevBlock ? prevBlock.chainLength+1 : 0;
     this.target = target;
 
-    this.transactions = [];
-    this.coinbaseTransactions = []; // Doesn't store ZksnarkTransactions but rather cm's
-
-    this.chainLength = prevBlock ? prevBlock.chainLength+1 : 0;
-    this.timestamp = Date.now();
+    this.coinbaseTransactions = []; // Doesn't store zksnarkTransactions but rather cm's
 
     this.cmlist = prevBlock ? prevBlock.cmlist : [];
     this.snlist = prevBlock ? prevBlock.snlist : [];
-  }
 
-  toJSON() {
-    let o = {
-      chainLength: this.chainLength,
-      timestamp: this.timestamp,
-    };
-    if (!this.isGenesisBlock()) {
-      o.transactions = Array.from(this.transactions);
-      o.coinbaseTransactions = Array.from(this.coinbaseTransactions);
-      o.prevBlockHash = this.prevBlockHash;
-      o.proof = this.proof;
-    }
-    return o;
+    this.proof = null;
   }
 
   /**
-   * Accepts a new transaction if it is valid and adds it to the block.
+   * Adds a transaction to the block (does not validate it).
    *
    * @param {ZksnarkTransaction} tx - The transaction to add to the block.
-   * @returns {Boolean} - True if the transaction was valid and added, false otherwise.
+   * @param {Buffer} sn - The sn of the coin being spent in the transaction.
+   * @returns {Boolean} - True if the transaction was added, false otherwise.
    */
-  addTransaction(tx) {
+  addTransaction(tx, sn) {
+    // Mint a new coin by adding it's cm, prevent the old coin from being spent again by adding sn.
+    this.cmlist.push(tx.cm);
+    this.snlist.push(sn);
+    // And add the transaction to the block
+    this.transactions.set(tx.id, tx);
+    return true;
+  }
+
+
+  /**
+   * Verifies a transaction. Specifically, checks that the zkSNARK proof is valid,
+   * and also verifies that the coin wasn't alrady spent (preventing double spending).
+   *
+   * @param {ZksnarkTransaction} tx - The transaction to verify.
+   * @returns {Boolean} - True if the transaction was valid, false otherwise.
+   */
+  async verifyTransaction(tx) {
+    tx = ZksnarkBlockchain.deserializeTransaction(tx);
+
     // First, verify the transaction proof.
     let vKey = JSON.parse(fs.readFileSync("verification_key.json"));
     let res = await snarkjs.groth16.verify(vKey, tx.proof.publicSignals, tx.proof.proof);
-    if (res !== true) { return false; }
+    if (res !== true) {
+      console.log('unverified proof');
+      return false;
+    }
 
     // Now verify that the proof's public signals are valid.
     // Namely, make sure the input cm's are authentic cm's.
     let [public_cm1, public_cm2, public_sn] = zksnarkUtils.parsePublicSignals(tx.proof.publicSignals);
-    if (!this.cmlist.includes(public_cm1) || !this.cmlist.includes(public_cm2)) {
+    if (!zksnarkUtils.listContains(this.cmlist, public_cm1) || !zksnarkUtils.listContains(this.cmlist, public_cm2)) {
+      console.log('invalid cm');
       return false;
     }
 
     // Also verify no one is double spending.
-    if (this.snlist.includes(public_sn)) { return false }
+    if (zksnarkUtils.listContains(this.snlist, public_sn)) {
+      console.log('sn already spent');
+      return false;
+    }
 
-    // Now mint a new coin and prevent the old coin from being spent again.
-    this.snlist.push(public_sn);
-    this.cmlist.push(tx.cm);
-    // And add the transaction to the block
-    this.transactions.push(tx);
+    return {tx: tx, public_sn: public_sn};
   }
 
   /**
@@ -85,8 +95,25 @@ module.exports = class ZksnarkBlock extends Block {
    * @param {Buffer} cm - The hash value that represents the new coin.
    */
   addCoinbaseTransaction(cm) {
-    this.coinbaseTransactions.push(tx.cm);
-    this.cmlist.push(tx.cm);
+    this.coinbaseTransactions.push(cm);
+    this.cmlist.push(cm);
+  }
+
+  /**
+   * Converts this block to an object that is to be made into a string using JSON.stringify().
+   */
+  toJSON() {
+    let o = {
+      chainLength: this.chainLength,
+      timestamp: this.timestamp,
+      transactions: Array.from(this.transactions.entries()),
+      coinbaseTransactions: Array.from(this.coinbaseTransactions),
+      prevBlockHash: this.prevBlockHash,
+      proof: this.proof,
+      cmlist: this.cmlist,
+      snlist: this.snlist
+    };
+    return o;
   }
 
 }

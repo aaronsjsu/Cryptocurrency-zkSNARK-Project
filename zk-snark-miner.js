@@ -1,8 +1,9 @@
 "use strict";
 
+const ZksnarkBlockchain = require('./zk-snark-blockchain.js');
 const ZksnarkClient = require("./zk-snark-client.js");
-const ZksnarkCoin = require("./zk-snark-coin.js");
-const Blockchain = require('./zk-snark-blockchain.js');
+const ZksnarkBlock = require("./zk-snark-block.js");
+const zksnarkUtils = require("./zk-snark-utils.js");
 
 /**
  * A ZksnarkMiner is a ZksnarkClient, but they also mine blocks and reward themselves if they
@@ -27,7 +28,7 @@ module.exports = class ZksnarkMiner extends ZksnarkClient {
    *      for messages.  (In single-threaded mode with FakeNet, this parameter can
    *      simulate miners with more or less mining power.)
    */
-  constructor({name, net, startingBlock, keyPair, miningRounds=Blockchain.NUM_ROUNDS_MINING} = {}) {
+  constructor({name, net, startingBlock, keyPair, miningRounds=ZksnarkBlockchain.NUM_ROUNDS_MINING} = {}) {
     super({name, net, startingBlock, keyPair});
     this.miningRounds=miningRounds;
   }
@@ -36,12 +37,13 @@ module.exports = class ZksnarkMiner extends ZksnarkClient {
    * Starts listeners and begins mining.
    */
   initialize() {
+    this.log('initializing');
     this.startNewSearch();
 
-    this.on(Blockchain.START_MINING, this.findProof);
-    this.on(Blockchain.POST_TRANSACTION, this.addTransaction);
+    this.on(ZksnarkBlockchain.START_MINING, this.findProof);
+    this.on(ZksnarkBlockchain.POST_TRANSACTION, this.addTransaction);
 
-    setTimeout(() => this.emit(Blockchain.START_MINING), 0);
+    setTimeout(() => this.emit(ZksnarkBlockchain.START_MINING), 0);
   }
 
   /**
@@ -50,7 +52,9 @@ module.exports = class ZksnarkMiner extends ZksnarkClient {
    * @param {Set} [txSet] - Transactions the miner has that have not been accepted yet.
    */
   startNewSearch(txSet=new Set()) {
-    this.currentBlock = Blockchain.makeBlock(this.address, this.lastBlock);
+    this.log('starting new search');
+
+    this.currentBlock = ZksnarkBlockchain.makeBlock(this.lastBlock);
 
     txSet.forEach((tx) => this.addTransaction(tx));
 
@@ -85,7 +89,7 @@ module.exports = class ZksnarkMiner extends ZksnarkClient {
     // If we are testing, don't continue the search.
     if (!oneAndDone) {
       // Check if anyone has found a block, and then return to mining.
-      setTimeout(() => this.emit(Blockchain.START_MINING), 0);
+      setTimeout(() => this.emit(ZksnarkBlockchain.START_MINING), 0);
     }
   }
 
@@ -93,7 +97,7 @@ module.exports = class ZksnarkMiner extends ZksnarkClient {
    * Broadcast the block, with a valid proof included.
    */
   announceProof() {
-    this.net.broadcast(Blockchain.PROOF_FOUND, this.currentBlock);
+    this.net.broadcast(ZksnarkBlockchain.PROOF_FOUND, this.currentBlock);
   }
 
   /**
@@ -105,13 +109,12 @@ module.exports = class ZksnarkMiner extends ZksnarkClient {
    */
   receiveBlock(s) {
     let b = super.receiveBlock(s);
-
     if (b === null) return null;
 
     // We switch over to the new chain only if it is better.
-    if (this.currentBlock && b.chainLength >= this.currentBlock.chainLength) {
+    if (this.currentBlock && s.chainLength > this.currentBlock.chainLength) {
       this.log(`cutting over to new chain.`);
-      let txSet = this.syncTransactions(b);
+      let txSet = this.syncTransactions(s);
       this.startNewSearch(txSet);
     }
   }
@@ -129,62 +132,75 @@ module.exports = class ZksnarkMiner extends ZksnarkClient {
    */
   syncTransactions(nb) {
     let cb = this.currentBlock;
-    let cbTxs = new Set();
-    let nbTxs = new Set();
+    let cbTxs = [];
+    let nbTxs = [];
 
     // The new block may be ahead of the old block.  We roll back the new chain
     // to the matching height, collecting any transactions.
     while (nb.chainLength > cb.chainLength) {
-      nb.transactions.forEach((tx) => nbTxs.add(tx));
+      nb.transactions.forEach((tx) => nbTxs.push(tx));
       nb = this.blocks.get(nb.prevBlockHash);
     }
 
     // Step back in sync until we hit the common ancestor.
-    while (cb && cb.id !== nb.id) {
+    while (cb && nb && cb.id !== nb.id) {
       // Store any transactions in the two chains.
-      cb.transactions.forEach((tx) => cbTxs.add(tx));
-      nb.transactions.forEach((tx) => nbTxs.add(tx));
+      cb.transactions.forEach((tx) => cbTxs.push(tx));
+      nb.transactions.forEach((tx) => nbTxs.push(tx));
 
       cb = this.blocks.get(cb.prevBlockHash);
       nb = this.blocks.get(nb.prevBlockHash);
     }
 
     // Remove all transactions that the new chain already has.
-    nbTxs.forEach((tx) => cbTxs.delete(tx));
+    nbTxs.forEach((tx) => {
+      let index = cbTxs.indexOf(tx);
+      cbTxs.splice(index, 1);
+    });
 
     return cbTxs;
   }
 
   /**
-   * Returns false if transaction is not accepted. Otherwise adds
-   * the transaction to the current block.
+   * Returns false if transaction is not accepted. Otherwise adds the transaction to
+   * the current block. The verify function takes a while to run, so we first verify
+   * the transaction, and once verified we add it to the current block (otherwise, by
+   * the time the transaction is verified the miner may have moved onto another block).
    *
    * @param {Transaction | String} tx - The transaction to add.
    */
-  addTransaction(tx) {
-    tx = Blockchain.makeTransaction(tx);
-    return this.currentBlock.addTransaction(tx, this);
-  }
-
-  /**
-   * When a miner posts a transaction, it must also add it to its current list of transactions.
-   *
-   * @param  {...any} args - Arguments needed for Client.postTransaction.
-   */
-  postTransaction(...args) {
-    let tx = super.postTransaction(...args);
-    return this.addTransaction(tx);
+  async addTransaction(tx) {
+    tx = ZksnarkBlockchain.deserializeTransaction(tx);
+    let res = await this.currentBlock.verifyTransaction(tx, this);
+    if (res) {
+      this.log("tranasction verified, adding it to the current block");
+      return this.currentBlock.addTransaction(res.tx, res.public_sn);
+    }
   }
 
   /**
    * Adds a coinbase transaction to the block, awarding this miner if it finds a proof.
    */
   addCoinbaseTransaction() {
-    for (let i = 0; i < Blockchain.COINBASE_AMT_ALLOWED; i++) {
-      let coin = ZksnarkCoin.createNewCoin();
+    for (let i = 0; i < ZksnarkBlockchain.COINBASE_AMT_ALLOWED; i++) {
+      let coin = zksnarkUtils.createNewCoin();
       this.coins.push(coin);
       this.currentBlock.addCoinbaseTransaction(coin.cm);
     }
+  }
+
+  /**
+   * The complement of postTransaction(). When one client calls postTransaction(), it'll
+   * trigger the receiving client to call this method. This method takes a coin and turns it into
+   * a new coin. To do this, it has to generate a proof, create a new coin, and then broadcast
+   * that as a zksnarkTransaction. This does calls the superclass method from ZksnarkClient, and then
+   * it calls addTransaction() to add it to the current block.
+   *
+   * @param {ZksnarkCoin} coin - The coin object that the payer sends to us.
+   */
+  async receiveTransaction(coin) {
+    super.receiveTransaction(coin);
+    this.addTransaction(tx);
   }
 
 }
