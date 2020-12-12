@@ -65,14 +65,14 @@ minnie.initialize();
 mickey.initialize();
 
 // Transfer some money around.
-console.log(`Charlie is transferring a coin to ${bob.address}`);
-charlie.postTransaction(bob.address);
-console.log(`Charlie is transferring a coin to ${alice.address}`);
-charlie.postTransaction(alice.address);
-console.log(`Charlie is transferring a coin to ${bob.address}`);
-charlie.postTransaction(bob.address);
-console.log(`Charlie is transferring a coin to ${alice.address}`);
-charlie.postTransaction(alice.address);
+console.log(`Charlie is transferring 2 coins to ${bob.address}`);
+charlie.postTransaction(bob.address, 2);
+console.log(`Charlie is transferring 2 coin to ${alice.address}`);
+charlie.postTransaction(alice.address, 2);
+console.log(`Alice is transferring a coin to ${bob.address}`);
+alice.postTransaction(bob.address);
+console.log(`Alice is transferring a coin to ${bob.address}`);
+alice.postTransaction(bob.address);
 
 // Print out the final balances after it has been running for some time.
 setTimeout(() => {
@@ -80,10 +80,10 @@ setTimeout(() => {
   console.log(`Minnie has a chain of length ${minnie.currentBlock.chainLength}`);
   console.log(`Mickey has a chain of length ${mickey.currentBlock.chainLength}`);
   console.log("Final balances:");
-  console.log(`Alice has ${alice.confirmedBalance} gold.`);
-  console.log(`Bob has ${bob.confirmedBalance} gold.`);
-  console.log(`Charlie has ${charlie.confirmedBalance} gold.`);
-  console.log(`Minnie has ${minnie.confirmedBalance} gold.`);
-  console.log(`Mickey has ${mickey.confirmedBalance} gold.`);
+  console.log(`Alice has ${alice.confirmedBalance} coins.`);
+  console.log(`Bob has ${bob.confirmedBalance} coins.`);
+  console.log(`Charlie has ${charlie.confirmedBalance} coins.`);
+  console.log(`Minnie has ${minnie.confirmedBalance} coins.`);
+  console.log(`Mickey has ${mickey.confirmedBalance} coins.`);
   process.exit(0);
-}, 75000);
+}, 90000);

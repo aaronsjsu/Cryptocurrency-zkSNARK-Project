@@ -51,23 +51,30 @@ module.exports = class ZksnarkClient extends Client {
    * Posts a transaction by sending a coin to the user specified by address.
    *
    * @param {String} address - The address of the client to send to.
+   * @param {Integer} amt - The amount of coins to send
    */
-  postTransaction(address) {
-    let coin;
+  postTransaction(address, amt=1) {
+    let validCoins = [];
     let i = 0;
-    while (i < this.coins.length) {
-      coin = this.coins[i];
+    let j = 0;
+    while (i < this.coins.length && j < amt) {
+      let coin = this.coins[i];
+      // Only add the coin if it is confirmed on the blockchain.
       if (zksnarkUtils.listContains(this.lastConfirmedBlock.cmlist, coin.cm)) {
-        break;
+        validCoins.push(coin);
+        j++
       }
       i++;
     }
-    if (!zksnarkUtils.listContains(this.lastConfirmedBlock.cmlist, coin.cm)) {
+    if (validCoins.length !== amt) { // True if amt > client's confirmed coin count
       return;
     }
-    this.coins.splice(i, i+1); // Removes the coin from the array.
-
-    this.net.sendMessage(address, ZksnarkBlockchain.SEND_COIN, coin);
+    for (i = 0; i < validCoins.length; i++) {
+      let coin = validCoins[i];
+      let index = this.coins.indexOf(coin);
+      this.coins.splice(index, 1); // Removes the coin from the array.
+      this.net.sendMessage(address, ZksnarkBlockchain.SEND_COIN, coin); // Send the coin
+    }
   }
 
   /**
