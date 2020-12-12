@@ -6,8 +6,14 @@ const ZksnarkCoin = require("./zk-snark-coin.js");
 
 const HASH_LENGTH = 256;
 
+/**
+ * Converts a byte buffer to a bit array
+ *
+ * @param {Buffer} - The buffer to convert to the array.
+ *
+ * @returns {Array} - An array of bits.
+ */
 exports.bufferToBitArray = function(buf) {
-  // Converts a byte buffer to a bit array
   let result = [];
   for (let i = 0; i < buf.length; i++) {
     for (let j = 0; j < 8; j++) {
@@ -17,6 +23,14 @@ exports.bufferToBitArray = function(buf) {
   return result;
 }
 
+/**
+ * Parses the public signals involved in a snarkjs proof. Returns the three 256 bit
+ * values involved in the public signals as a buffer.
+ *
+ * @param {Object} - The public signals involved in the snarkjs proof.
+ *
+ * @returns {Array} - An array containing the buffers cm1, cm2, sn.
+ */
 exports.parsePublicSignals = function(publicSignals) {
   // publicSignals is in the form of a bit array of length 256 * 3.
   // We want to parse it into three byte buffers each of length 256 bits.
@@ -40,6 +54,11 @@ exports.parsePublicSignals = function(publicSignals) {
   return [cm1, cm2, sn];
 }
 
+/**
+ * Generates a random 256 bit number and returns it as a buffer..
+ *
+ * @returns {Buffer} - The random 256 bit number.
+ */
 exports.random256BitNumber = function() {
   let randomBytes = new Uint8Array(32);
   getRandomValues(randomBytes);
@@ -59,4 +78,20 @@ exports.createNewCoin = function() {
   buf.fill(r, 0, r.length);
   let cm = crypto.createHash("sha256").update(buf).digest();
   return new ZksnarkCoin(cm, r, sn);
+}
+
+/**
+* Helper method used by addTransaction(). Searches the list to see if it contains the buffer.
+*
+* @param {Buffer[]} list - The list of cm's.
+* @param {Buffer} buf - The cm to search for.
+* @returns {Boolean} - True if cm is in cmlist, false otherwise.
+*/
+exports.listContains = function(list, buf) {
+  for (let i = 0; i < list.length; i++) {
+    if (list[i].compare(buf) === 0) {
+      return true;
+    }
+  }
+  return false;
 }
