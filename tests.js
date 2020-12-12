@@ -6,6 +6,7 @@ const ZksnarkTransaction = require('./zk-snark-transaction.js');
 const ZksnarkBlock = require('./zk-snark-block.js');
 const ZksnarkCoin = require('./zk-snark-coin.js');
 const zksnarkUtils = require("./zk-snark-utils.js");
+const { FakeNet } = require('Spartan-Gold');
 
 async function testCircuit() {
 
@@ -198,6 +199,12 @@ async function testSerializations() {
   console.log(equals);
 }
 
-testCircuit().then(() => {
+async function runTests() {
+  await testCircuit();
+  await testUtils();
+  await testSerializations();
+}
+
+runTests().then(() => {
   process.exit(0);
 });

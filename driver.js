@@ -1,56 +1,62 @@
 "use strict";
 
-let ZKSnarkBlockchain = require('./zk-snark-blockchain.js');
-let ZKSnarkBlock = require('./zk-snark-block.js');
-let ZKSnarkClient = require('./zk-snark-client.js');
-let ZKSnarkMiner = require('./zk-snark-miner.js');
-let ZKSnarkTransaction = require('./zk-snark-transaction.js');
+const ZksnarkBlockchain = require('./zk-snark-blockchain.js');
+const ZksnarkBlock = require('./zk-snark-block.js');
+const ZksnarkClient = require('./zk-snark-client.js');
+const ZksnarkMiner = require('./zk-snark-miner.js');
+const ZksnarkTransaction = require('./zk-snark-transaction.js');
+const ZksnarkCoin = require('./zk-snark-coin.js');
+const { FakeNet } = require('Spartan-Gold');
 
-let FakeNet = require('./fakeNet.js');
-
-console.log("Starting simulation.  This may take a moment...");
+console.log("Starting simulation.  This may take a moment...\n");
 
 
 let fakeNet = new FakeNet();
 
 // Clients
-let alice = new ZKSnarkClient({name: "Alice", net: fakeNet});
-let bob = new ZKSnarkClient({name: "Bob", net: fakeNet});
-let charlie = new ZKSnarkClient({name: "Charlie", net: fakeNet});
+let alice = new ZksnarkClient({name: "Alice", net: fakeNet});
+let bob = new ZksnarkClient({name: "Bob", net: fakeNet});
+let charlie = new ZksnarkClient({name: "Charlie", net: fakeNet});
 
 // Miners
-let minnie = new ZKSnarkMiner({name: "Minnie", net: fakeNet});
-let mickey = new ZKSnarkMiner({name: "Mickey", net: fakeNet});
+let minnie = new ZksnarkMiner({name: "Minnie", net: fakeNet});
+let mickey = new ZksnarkMiner({name: "Mickey", net: fakeNet});
+
+// Start each client and miner off with 10 coins
+let initialCoins = [];
+let initAmt = 4;
+initialCoins = initialCoins.concat(alice.createInitialCoins(initAmt));
+initialCoins = initialCoins.concat(bob.createInitialCoins(initAmt));
+initialCoins = initialCoins.concat(charlie.createInitialCoins(initAmt));
+initialCoins = initialCoins.concat(minnie.createInitialCoins(initAmt));
+initialCoins = initialCoins.concat(mickey.createInitialCoins(initAmt));
 
 // Creating genesis block
-let genesis = Blockchain.makeGenesis({
-  blockClass: ZKSnarkBlock,
-  transactionClass: ZKSnarkTransaction,
-  clientBalanceMap: new Map([
-    [alice, 10],
-    [bob, 10],
-    [charlie, 10],
-    [minnie, 10],
-    [mickey, 10],
-  ]),
-});
+let genesis = ZksnarkBlockchain.makeGenesis({
+  blockClass: ZksnarkBlock,
+  transactionClass: ZksnarkTransaction,
+  currencyClass: ZksnarkCoin,
+  powLeadingZeroes: 14,
+  coinbaseAmount: 1
+}, initialCoins);
 
-// Late miner - Donald has more mining power, represented by the miningRounds.
-// (Mickey and Minnie have the default of 2000 rounds).
-let donald = new ZKSnarkMiner({name: "Donald", net: fakeNet, startingBlock: genesis, miningRounds: 3000});
+alice.setGenesisBlock(ZksnarkBlockchain.copyBlock(genesis));
+bob.setGenesisBlock(ZksnarkBlockchain.copyBlock(genesis));
+charlie.setGenesisBlock(ZksnarkBlockchain.copyBlock(genesis));
+minnie.setGenesisBlock(ZksnarkBlockchain.copyBlock(genesis));
+mickey.setGenesisBlock(ZksnarkBlockchain.copyBlock(genesis));
 
-function showBalances(client) {
-  console.log(`Alice has ${client.lastBlock.balanceOf(alice.address)} gold.`);
-  console.log(`Bob has ${client.lastBlock.balanceOf(bob.address)} gold.`);
-  console.log(`Charlie has ${client.lastBlock.balanceOf(charlie.address)} gold.`);
-  console.log(`Minnie has ${client.lastBlock.balanceOf(minnie.address)} gold.`);
-  console.log(`Mickey has ${client.lastBlock.balanceOf(mickey.address)} gold.`);
-  console.log(`Donald has ${client.lastBlock.balanceOf(donald.address)} gold.`);
+function showBalances() {
+  console.log(`Alice has ${alice.confirmedBalance} coins.`);
+  console.log(`Bob has ${bob.confirmedBalance} coins.`);
+  console.log(`Charlie has ${charlie.confirmedBalance} coins.`);
+  console.log(`Minnie has ${minnie.confirmedBalance} coins.`);
+  console.log(`Mickey has ${mickey.confirmedBalance} coins.\n`);
 }
 
 // Showing the initial balances from Alice's perspective, for no particular reason.
 console.log("Initial balances:");
-showBalances(alice);
+showBalances();
 
 fakeNet.register(alice, bob, charlie, minnie, mickey);
 
@@ -58,40 +64,26 @@ fakeNet.register(alice, bob, charlie, minnie, mickey);
 minnie.initialize();
 mickey.initialize();
 
-// Alice transfers some money to Bob.
-console.log(`Alice is transferring 40 gold to ${bob.address}`);
-alice.postTransaction([{ amount: 40, address: bob.address }]);
-
-setTimeout(() => {
-  console.log();
-  console.log("***Starting a late-to-the-party miner***");
-  console.log();
-  fakeNet.register(donald);
-  donald.initialize();
-}, 2000);
+// Transfer some money around.
+console.log(`Charlie is transferring a coin to ${bob.address}`);
+charlie.postTransaction(bob.address);
+console.log(`Charlie is transferring a coin to ${alice.address}`);
+charlie.postTransaction(alice.address);
+console.log(`Charlie is transferring a coin to ${bob.address}`);
+charlie.postTransaction(bob.address);
+console.log(`Charlie is transferring a coin to ${alice.address}`);
+charlie.postTransaction(alice.address);
 
 // Print out the final balances after it has been running for some time.
 setTimeout(() => {
   console.log();
-  console.log(`Minnie has a chain of length ${minnie.currentBlock.chainLength}:`);
-
-  console.log();
-  console.log(`Mickey has a chain of length ${mickey.currentBlock.chainLength}:`);
-
-  console.log();
-  console.log(`Donald has a chain of length ${donald.currentBlock.chainLength}:`);
-
-  console.log();
-  console.log("Final balances (Minnie's perspective):");
-  showBalances(minnie);
-
-  console.log();
-  console.log("Final balances (Alice's perspective):");
-  showBalances(alice);
-
-  console.log();
-  console.log("Final balances (Donald's perspective):");
-  showBalances(donald);
-
+  console.log(`Minnie has a chain of length ${minnie.currentBlock.chainLength}`);
+  console.log(`Mickey has a chain of length ${mickey.currentBlock.chainLength}`);
+  console.log("Final balances:");
+  console.log(`Alice has ${alice.confirmedBalance} gold.`);
+  console.log(`Bob has ${bob.confirmedBalance} gold.`);
+  console.log(`Charlie has ${charlie.confirmedBalance} gold.`);
+  console.log(`Minnie has ${minnie.confirmedBalance} gold.`);
+  console.log(`Mickey has ${mickey.confirmedBalance} gold.`);
   process.exit(0);
-}, 5000);
+}, 75000);
