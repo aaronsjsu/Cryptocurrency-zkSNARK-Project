@@ -1,8 +1,5 @@
 "use strict";
 
-const zksnarkUtils = require("./zk-snark-utils.js");
-const crypto = require("crypto");
-
 /**
  * Represents a single coin. Holds the values: cm, r, and sn. These are the values that make up a coin.
  */
