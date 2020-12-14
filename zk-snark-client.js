@@ -40,7 +40,8 @@ module.exports = class ZksnarkClient extends Client {
   get confirmedBalance() {
     let count = 0;
     for (let i = 0; i < this.coins.length; i++) {
-      if (zksnarkUtils.listContains(this.lastConfirmedBlock.cmlist, this.coins[i].cm)) {
+      if (zksnarkUtils.listContains(this.lastConfirmedBlock.cmlist, this.coins[i].cm) &&
+          !zksnarkUtils.listContains(this.lastConfirmedBlock.snlist, this.coins[i].sn)) {
         count++;
       }
     }
