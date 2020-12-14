@@ -8,8 +8,7 @@ const zksnarkUtils = require("./zk-snark-utils.js");
 /**
  * A ZksnarkMiner is a ZksnarkClient, but they also mine blocks and reward themselves if they
  * find a block proof before anyone else. Extends ZksnarkClient, but most of the additional
- * funcionality is copied directly from Miner in Spartan-Gold. The only changes from Miner
- * include a change in startNewSearch() and an additional method addCoinbaseTransaction().
+ * funcionality is copied directly from Miner in Spartan-Gold.
  */
 module.exports = class ZksnarkMiner extends ZksnarkClient {
 
@@ -31,6 +30,8 @@ module.exports = class ZksnarkMiner extends ZksnarkClient {
   constructor({name, net, startingBlock, keyPair, miningRounds=ZksnarkBlockchain.NUM_ROUNDS_MINING} = {}) {
     super({name, net, startingBlock, keyPair});
     this.miningRounds=miningRounds;
+
+    this.txCount = 0;
   }
 
   /**
@@ -78,6 +79,11 @@ module.exports = class ZksnarkMiner extends ZksnarkClient {
     let pausePoint = this.currentBlock.proof + this.miningRounds;
     while (this.currentBlock.proof < pausePoint) {
       if (this.currentBlock.hasValidProof()) {
+        if (this.txCount !== this.currentBlock.snlist.length) {
+          // This here is an attempt to fix a bug where the block transactions get out of sync.
+          this.currentBlock.proof++;
+          continue;
+        }
         this.log(`found proof for block ${this.currentBlock.chainLength}: ${this.currentBlock.proof}`);
         this.announceProof();
         this.receiveBlock(this.currentBlock);
@@ -173,7 +179,8 @@ module.exports = class ZksnarkMiner extends ZksnarkClient {
     tx = ZksnarkBlockchain.deserializeTransaction(tx);
     let res = await this.currentBlock.verifyTransaction(tx, this);
     if (res) {
-      this.log("tranasction verified, adding it to the current block");
+      this.log("transaction verified, adding it to the current block");
+      this.txCount++;
       return this.currentBlock.addTransaction(res.tx, res.public_sn);
     }
   }
