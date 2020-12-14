@@ -22,9 +22,9 @@ let charlie = new ZksnarkClient({name: "Charlie", net: fakeNet});
 let minnie = new ZksnarkMiner({name: "Minnie", net: fakeNet});
 let mickey = new ZksnarkMiner({name: "Mickey", net: fakeNet});
 
-// Start each client and miner off with 10 coins
+// Start each client and miner off with initAmt coins
 let initialCoins = [];
-let initAmt = 4;
+const initAmt = 4;
 initialCoins = initialCoins.concat(alice.createInitialCoins(initAmt));
 initialCoins = initialCoins.concat(bob.createInitialCoins(initAmt));
 initialCoins = initialCoins.concat(charlie.createInitialCoins(initAmt));
@@ -67,10 +67,6 @@ mickey.initialize();
 // Transfer some money around.
 console.log(`Charlie is transferring 2 coins to ${bob.address}`);
 charlie.postTransaction(bob.address, 2);
-console.log(`Charlie is transferring 2 coin to ${alice.address}`);
-charlie.postTransaction(alice.address, 2);
-console.log(`Alice is transferring a coin to ${bob.address}`);
-alice.postTransaction(bob.address);
 console.log(`Alice is transferring a coin to ${bob.address}`);
 alice.postTransaction(bob.address);
 
@@ -86,4 +82,4 @@ setTimeout(() => {
   console.log(`Minnie has ${minnie.confirmedBalance} coins.`);
   console.log(`Mickey has ${mickey.confirmedBalance} coins.`);
   process.exit(0);
-}, 90000);
+}, 120000);
